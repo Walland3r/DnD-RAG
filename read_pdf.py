@@ -4,7 +4,6 @@ from langchain.schema.document import Document
 
 def split_pdf_data(pdfs : list[Document]):
     splitter = RecursiveCharacterTextSplitter(
-        # Set a really small chunk size, just to show.
         chunk_size=500,
         chunk_overlap=50,
         length_function=len,

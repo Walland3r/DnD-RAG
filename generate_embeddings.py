@@ -1,23 +1,12 @@
-from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 from langchain.schema import Document
-
-def generate_embeddings(model_name):
-    model_kwargs = {'device': 'cuda'}
-    encode_kwargs = {'normalize_embeddings': True}
-
-    embedding_function = HuggingFaceEmbeddings(
-        model_name=model_name,
-        model_kwargs=model_kwargs,
-        encode_kwargs=encode_kwargs
-    )
-    return embedding_function
+from embedding_function import get_function
 
 def encapsulate_id(data_chunks: list[Document]):
     current_page = None
     chunk_number = 0
     for chunk in data_chunks:
-        filename = chunk.metadata.get('filename', 'unknown')
+        filename = chunk.metadata.get('source', 'unknown')
         page = chunk.metadata.get('page', 'unknown')
         if page != current_page:
             current_page = page
@@ -27,15 +16,18 @@ def encapsulate_id(data_chunks: list[Document]):
     return data_chunks
 
 def add_to_storage(data_chunks: list[Document]):
-    embedding_function  = generate_embeddings('sentence-transformers/all-MiniLM-L6-v2')
-    vector_store = Chroma(embedding_function=embedding_function, persist_directory= 'vector_store')
+    vector_store = Chroma(embedding_function=get_function(), persist_directory= 'vector_store')
     existing_items = vector_store.get()
-    #existing_ids = set(existing_items['id'])
+    existing_ids = set(existing_items['ids'])
     
     data_chunks = encapsulate_id(data_chunks)
-    print(data_chunks[1].metadata)
+    new_chunks = []
+    for chunk in data_chunks:
+         if chunk.metadata['id'] not in existing_ids:
+            new_chunks.append(chunk)
 
-    # non_existing_chunk = []
-    # for chunk in data_chunks:
-    #     if chunk.metadata['id'] not in existing_ids:
-    #         non_existing_chunk.append(chunk)
+    if(len(new_chunks) > 0):
+        print(f"Adding {len(new_chunks)} new chunks to the storage.")
+        vector_store.add_documents(new_chunks, ids = [chunk.metadata['id'] for chunk in new_chunks])
+    else:
+        print("No new chunks to add to the storage.")
