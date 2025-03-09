@@ -1,3 +1,10 @@
+"""
+This module provides functions to read and split PDF documents. The `split_pdf_data`
+function splits PDF documents into smaller chunks using a text splitter. The
+`read_pdfs` function loads PDF documents from a specified directory and splits
+them into chunks.
+"""
+
 from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain.schema.document import Document

@@ -1,3 +1,10 @@
+"""
+This module provides functions to encapsulate IDs for data chunks and add them
+to a vector store. The `encapsulate_id` function assigns unique IDs to each
+data chunk based on its source and page number. The `add_to_storage` function
+adds new data chunks to the vector store if they do not already exist.
+"""
+
 from langchain_chroma import Chroma
 from langchain.schema import Document
 from embedding_function import get_function
@@ -25,9 +32,3 @@ def add_to_storage(data_chunks: list[Document]):
     for chunk in data_chunks:
          if chunk.metadata['id'] not in existing_ids:
             new_chunks.append(chunk)
-
-    if(len(new_chunks) > 0):
-        print(f"Adding {len(new_chunks)} new chunks to the storage.")
-        vector_store.add_documents(new_chunks, ids = [chunk.metadata['id'] for chunk in new_chunks])
-    else:
-        print("No new chunks to add to the storage.")

@@ -1,3 +1,9 @@
+"""
+This module defines a function `get_function` that returns an embedding function
+using the HuggingFace library. The embedding function is configured to use a
+specific model and device (CPU or GPU) and normalizes the embeddings.
+"""
+
 from langchain_huggingface import HuggingFaceEmbeddings
 from torch.cuda import is_available
 

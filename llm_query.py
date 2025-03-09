@@ -1,3 +1,10 @@
+"""
+This module defines a function `llm_query` that takes a user input string,
+searches for relevant context using a vector store, and generates a response
+using a language model. The response is based on the context retrieved from
+the vector store and formatted using a predefined template.
+"""
+
 from langchain_chroma import Chroma
 from langchain.prompts import ChatPromptTemplate
 from generate_embeddings import get_function
@@ -5,11 +12,11 @@ from ollama import Client
 
 
 TEMPLATE = """
-You are an expert RPG game master assistant with deep knowledge of Dungeons & Dragons.  
-Answer the questions based **only** on the following context. 
+You are an expert RPG game master assistant with deep knowledge of Dungeons & Dragons.
+Answer the questions based **only** on the following context.
 **Game Master asks:** {question}  
 
-**Relevant Rules & Information:**  
+**Relevant Rules & Information:**
 {context}  
 """
 
