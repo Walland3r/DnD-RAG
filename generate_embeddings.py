@@ -1,23 +1,19 @@
-from langchain_huggingface import HuggingFaceEmbeddings
+"""
+This module provides functions to encapsulate IDs for data chunks and add them
+to a vector store. The `encapsulate_id` function assigns unique IDs to each
+data chunk based on its source and page number. The `add_to_storage` function
+adds new data chunks to the vector store if they do not already exist.
+"""
+
 from langchain_chroma import Chroma
 from langchain.schema import Document
-
-def generate_embeddings(model_name):
-    model_kwargs = {'device': 'cuda'}
-    encode_kwargs = {'normalize_embeddings': True}
-
-    embedding_function = HuggingFaceEmbeddings(
-        model_name=model_name,
-        model_kwargs=model_kwargs,
-        encode_kwargs=encode_kwargs
-    )
-    return embedding_function
+from embedding_function import get_function
 
 def encapsulate_id(data_chunks: list[Document]):
     current_page = None
     chunk_number = 0
     for chunk in data_chunks:
-        filename = chunk.metadata.get('filename', 'unknown')
+        filename = chunk.metadata.get('source', 'unknown')
         page = chunk.metadata.get('page', 'unknown')
         if page != current_page:
             current_page = page
@@ -27,15 +23,12 @@ def encapsulate_id(data_chunks: list[Document]):
     return data_chunks
 
 def add_to_storage(data_chunks: list[Document]):
-    embedding_function  = generate_embeddings('sentence-transformers/all-MiniLM-L6-v2')
-    vector_store = Chroma(embedding_function=embedding_function, persist_directory= 'vector_store')
+    vector_store = Chroma(embedding_function=get_function(), persist_directory= 'vector_store')
     existing_items = vector_store.get()
-    #existing_ids = set(existing_items['id'])
+    existing_ids = set(existing_items['ids'])
     
     data_chunks = encapsulate_id(data_chunks)
-    print(data_chunks[1].metadata)
-
-    # non_existing_chunk = []
-    # for chunk in data_chunks:
-    #     if chunk.metadata['id'] not in existing_ids:
-    #         non_existing_chunk.append(chunk)
+    new_chunks = []
+    for chunk in data_chunks:
+         if chunk.metadata['id'] not in existing_ids:
+            new_chunks.append(chunk)
