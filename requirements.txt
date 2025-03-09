@@ -1,5 +1,10 @@
+fastapi==0.115.11
 langchain==0.3.20
 langchain_chroma==0.2.2
 langchain_community==0.3.19
 langchain_huggingface==0.1.2
 langchain_text_splitters==0.3.6
+ollama==0.4.7
+pydantic==2.10.6
+pypdf==5.3.1
+torch==2.6.0+cu126
