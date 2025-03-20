@@ -24,11 +24,18 @@ def encapsulate_id(data_chunks: list[Document]):
 
 def add_to_storage(data_chunks: list[Document]):
     vector_store = Chroma(embedding_function=get_function(), persist_directory= 'vector_store')
-    existing_items = vector_store.get()
+    existing_items = vector_store.get(include=[])
     existing_ids = set(existing_items['ids'])
-    
+
     data_chunks = encapsulate_id(data_chunks)
     new_chunks = []
     for chunk in data_chunks:
          if chunk.metadata['id'] not in existing_ids:
             new_chunks.append(chunk)
+
+    if new_chunks:
+        new_id = [chunk.metadata['id'] for chunk in new_chunks]
+        vector_store.add_documents(new_chunks, ids=new_id)
+        print(f"Added {len(new_chunks)} new chunks to the vector store.")
+    else:
+        print("No new documents to add.")
