@@ -12,13 +12,22 @@ from ollama import Client
 
 
 TEMPLATE = """
-You are an expert RPG game master assistant with deep knowledge of Dungeons & Dragons.
-Answer the questions based **only** on the following context.
-**Game Master asks:** {question}  
+You are a highly knowledgeable **RPG Game Master Assistant** specializing in **Dungeons & Dragons** rules and mechanics.
 
-**Relevant Rules & Information:**
+**Your Task**
+- Answer **only** using the provided context.  
+- If the answer is **not in the context**, say: "I don't know based on the given information."  
+- Keep responses **clear and concise**.  
+
+**Game Master's Question**  
+{question}  
+
+**Relevant Rules & Information**  
 {context}  
+
+**Important:** Do not generate information that is not explicitly stated in the context above.
 """
+
 
 def llm_query(user_input : str) -> str:
     vector_store = Chroma(persist_directory= 'vector_store', embedding_function=get_function())

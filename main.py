@@ -24,7 +24,6 @@ async def query(request: QueryRequest):
         response = llm_query(request.question)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    print(response)
     return response
 
 @app.get("/", response_class=HTMLResponse)
