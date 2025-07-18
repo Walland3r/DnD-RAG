@@ -1,0 +1,39 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    network_mode: "host"
+    environment:
+      - QDRANT_URL=http://localhost:6333
+      - OLLAMA_URL=http://localhost:11434/v1
+      - LOGFIRE_TOKEN=${LOGFIRE_TOKEN}
+    depends_on:
+      - qdrant
+    volumes:
+      - ./backend:/app
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+    network_mode: "host"
+    environment:
+      - NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    restart: unless-stopped
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    network_mode: "host"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    restart: unless-stopped
+
+volumes:
+  qdrant_data:
