@@ -15,9 +15,9 @@ curl -X POST http://localhost:8000/generate_database
 import os
 import logfire
 import uvicorn
+from pydantic import BaseModel
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
 
 from qdrant_client import QdrantClient
 from docling.chunking import HybridChunker

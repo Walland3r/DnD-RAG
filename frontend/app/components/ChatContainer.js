@@ -24,7 +24,7 @@ const ChatContainer = () => {
     const responseId = Date.now().toString();
     setMessages(prev => [...prev, { 
       id: responseId, 
-      content: '⏳ Thinking...', 
+      content: '⏳ Checking if message is appropriate...', 
       isUser: false 
     }]);
     
