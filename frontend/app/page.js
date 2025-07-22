@@ -1,4 +1,4 @@
-import ChatContainer from './components/ChatContainer';
+import ChatManager from './components/ChatManager';
 
 export default function Home() {
   return (
@@ -8,7 +8,7 @@ export default function Home() {
         <p>Ask a question about Dungeons & Dragons 5th Edition</p>
       </header>
       
-      <ChatContainer />
+      <ChatManager />
     </div>
   );
 }

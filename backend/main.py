@@ -103,6 +103,14 @@ class DndKnowledgeBase:
             of the top result. Returns both the URL and the extracted page content.
             """
             search_result = self.web_tool.web_search(query=search_query, max_results=1)
+            
+            # Check if any valid results were found
+            if not search_result.results:
+                return WebSearchResult(
+                    url="", 
+                    content=f"No valid search results found for query: {search_query}"
+                )
+            
             url = search_result.results[0].url
             content = self.web_tool.web_scrap(url)
             return WebSearchResult(url=url, content=content)
