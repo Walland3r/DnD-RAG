@@ -25,11 +25,11 @@ const ChatSidebar = ({ chats, activeChat, onChatSelect, onNewChat, onDeleteChat 
           >
             <div className="chat-item-content">
               <div className="chat-title">
-                {chat.title || `Chat ${chat.id.slice(0, 8)}...`}
+                {chat.title || `New chat`}
               </div>
               <div className="chat-preview">
                 {chat.messages.length > 0 
-                  ? chat.messages[0].content.slice(0, 50) + '...'
+                  ? chat.messages[0].content.slice(chat.title.length, 100) + '...'
                   : 'New conversation'
                 }
               </div>

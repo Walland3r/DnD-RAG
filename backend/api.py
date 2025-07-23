@@ -33,6 +33,7 @@ from main import (
 )
 
 logfire.configure(token=os.environ['LOGFIRE_TOKEN'],)
+logfire.configure(scrubbing=False)
 logfire.instrument_pydantic_ai()
 
 app = FastAPI(

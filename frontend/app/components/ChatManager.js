@@ -30,7 +30,7 @@ const useLocalStorage = (key, defaultValue) => {
 };
 
 const createNewChat = () => ({
-    id: `chat-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    id: `chat-${Date.now()}-${Math.random().toString(36).substring(2)}`,
     title: '',
     messages: [],
     lastUpdated: new Date().toISOString(),
@@ -38,19 +38,10 @@ const createNewChat = () => ({
 
 
 const ChatManager = () => {
-    
     const [chats, setChats] = useLocalStorage('dnd-chats', [createNewChat()]);
     const [activeChat, setActiveChat] = useLocalStorage('dnd-active-chat', null);
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const chatContainerRef = useRef(null);
-
-    // Set initial active chat if none selected
-    useEffect(() => {
-        if (!activeChat && chats.length > 0) {
-            setActiveChat(chats[0].id);
-        }
-    }, [activeChat, chats, setActiveChat]);
-
 
     const handleNewChat = useCallback(() => {
         const newChat = createNewChat();
@@ -59,26 +50,12 @@ const ChatManager = () => {
     }, [setChats, setActiveChat]);
 
     const handleChatSelect = useCallback((chatId) => {
-        chatContainerRef.current?.abortStream();
         setActiveChat(chatId);
     }, [setActiveChat]);
 
     const handleDeleteChat = useCallback((chatId) => {
         chatContainerRef.current?.abortStream();
-        
-        if (chats.length <= 1) {
-            // Replace last chat with new one
-            const newChat = createNewChat();
-            setChats([newChat]);
-            setActiveChat(newChat.id);
-        } else {
-            // Remove chat and switch to another if needed
-            setChats(prev => prev.filter(chat => chat.id !== chatId));
-            if (activeChat === chatId) {
-                const remainingChats = chats.filter(chat => chat.id !== chatId);
-                setActiveChat(remainingChats[0]?.id || null);
-            }
-        }
+        setChats(prev => prev.filter(chat => chat.id !== chatId));
     }, [chats, activeChat, setChats, setActiveChat]);
 
     const updateChatMessages = useCallback((chatId, messages) => {
@@ -91,7 +68,6 @@ const ChatManager = () => {
             } : chat
         ));
     }, [setChats]);
-
 
     const currentChat = chats.find(chat => chat.id === activeChat);
 

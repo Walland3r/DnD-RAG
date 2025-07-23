@@ -38,27 +38,23 @@ const ChatContainer = forwardRef(({ initialMessages = [], onMessagesChange }, re
     }
   }, []);
 
-  // Expose abort function to parent
-  useImperativeHandle(ref, () => ({ abortStream }), [abortStream]);
-
   // Cleanup on unmount
   useEffect(() => () => abortStream(), [abortStream]);
 
   const streamResponse = async (question) => {
     abortStream();
     abortControllerRef.current = new AbortController();
-    
     const responseId = Date.now().toString();
-    
+
     // Add user message and placeholder
     setMessages(prev => [
       ...prev,
       { content: question, isUser: true },
-      { id: responseId, content: '⏳ Thinking...', isUser: false }
+      { id: responseId, content: '⏳ Checking if message is appropriate...', isUser: false }
     ]);
-    
+
     setIsLoading(true);
-    
+
     try {
       const response = await fetch('/api/ask/stream', {
         method: 'POST',
@@ -66,36 +62,40 @@ const ChatContainer = forwardRef(({ initialMessages = [], onMessagesChange }, re
         body: JSON.stringify({ question }),
         signal: abortControllerRef.current.signal
       });
-      
+
       if (!response.ok) throw new Error(`Error ${response.status}`);
-      
+
       // Stream the response
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let text = '';
-      
+
       while (true) {
         if (abortControllerRef.current?.signal.aborted) {
           reader.cancel();
           break;
         }
-        
+
         const { done, value } = await reader.read();
         if (done) break;
-        
+
         text += decoder.decode(value, { stream: true });
-        setMessages(prev => prev.map(msg => 
+        setMessages(prev => prev.map(msg =>
           msg.id === responseId ? { ...msg, content: text } : msg
         ));
       }
     } catch (error) {
-      const content = error.name === 'AbortError' 
-        ? '🛑 Response cancelled' 
-        : `⚠️ Error: ${error.message}`;
-        
-      setMessages(prev => prev.map(msg => 
-        msg.id === responseId ? { ...msg, content } : msg
-      ));
+      const errorMessage  = error.name === 'AbortError'
+        ? '\n🛑 Response cancelled\n'
+        : `\n⚠️ Error: ${error.message}\n`;
+
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === responseId
+            ? { ...msg, content: msg.content + '\n' + errorMessage }
+            : msg
+        )
+      );
     } finally {
       setIsLoading(false);
       abortControllerRef.current = null;
@@ -106,10 +106,10 @@ const ChatContainer = forwardRef(({ initialMessages = [], onMessagesChange }, re
     <div id="chat-container">
       <div id="messages" ref={messagesRef}>
         {messages.map((msg, index) => (
-          <ChatMessage 
-            key={index} 
-            message={msg.content} 
-            isUser={msg.isUser} 
+          <ChatMessage
+            key={index}
+            message={msg.content}
+            isUser={msg.isUser}
           />
         ))}
       </div>
