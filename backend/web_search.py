@@ -1,3 +1,4 @@
+import os
 from typing import List, Optional
 from pydantic import BaseModel, Field
 from googlesearch import search
@@ -15,13 +16,15 @@ class SearchList(BaseModel):
 class WebSearchTool:
     def __init__(
         self,
-        language: Optional[str] = "en",
-        timeout: Optional[int] = 1,
-        sleep_interval: Optional[int] = 1,
+        language: Optional[str] = None,
+        timeout: Optional[int] = None,
+        sleep_interval: Optional[int] = None,
+        http_timeout: Optional[int] = None,
     ):
-        self.language = language
-        self.timeout = timeout
-        self.sleep_interval = sleep_interval
+        self.language = language or os.getenv("WEB_SEARCH_LANGUAGE", "en")
+        self.timeout = timeout or int(os.getenv("WEB_SEARCH_TIMEOUT", "1"))
+        self.sleep_interval = sleep_interval or int(os.getenv("WEB_SEARCH_SLEEP_INTERVAL", "1"))
+        self.http_timeout = http_timeout or int(os.getenv("WEB_SEARCH_HTTP_TIMEOUT", "10"))
 
     def _validate_url(self, url: str) -> str:
         """Validate and fix URL format"""
@@ -89,7 +92,7 @@ class WebSearchTool:
         
         try:
             with Client(headers=headers) as client:
-                response = client.get(validated_url, timeout=10)
+                response = client.get(validated_url, timeout=self.http_timeout)
                 if response.status_code != 200:
                     return f'Failed to fetch {validated_url}. Code: {response.status_code}'
 

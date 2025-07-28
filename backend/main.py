@@ -12,7 +12,6 @@ from typing import Tuple
 import system_prompts
 from pydantic import BaseModel
 from pydantic_ai import Agent, RunContext
-from pydantic_ai.settings import ModelSettings
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from qdrant_client import QdrantClient
@@ -21,9 +20,11 @@ from web_search import WebSearchTool
 
 QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/v1")
-MODEL_NAME = "qwen3:1.7b"
-EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
-COLLECTION_NAME = "handbook"
+MODEL_NAME = os.getenv("MODEL_NAME", "qwen3:1.7b")
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+COLLECTION_NAME = os.getenv("COLLECTION_NAME", "handbook")
+SPARSE_MODEL = os.getenv("SPARSE_MODEL", "Qdrant/bm25")
+QUERY_LIMIT = int(os.getenv("QUERY_LIMIT", "10"))
 
 class WebSearchResult(BaseModel):
     url: str
@@ -38,11 +39,12 @@ class QdrantService:
         self.client = QdrantClient(location=url)
         try:
             self.client.set_model(embedding_model)
-            self.client.set_sparse_model("Qdrant/bm25")
+            self.client.set_sparse_model(SPARSE_MODEL)
         except Exception as e:
             raise RuntimeError(f"Failed to initialize Qdrant client: {e}") from e
 
-    def query_documents(self, collection_name: str, query_text: str, limit: int = 10) -> list[str]:
+    def query_documents(self, collection_name: str, query_text: str, limit: int = None) -> list[str]:
+        limit = limit or QUERY_LIMIT
         points = self.client.query(
             collection_name=collection_name,
             query_text=query_text,
@@ -57,7 +59,7 @@ class AgentFactory:
             provider=OpenAIProvider(base_url=base_url)
         )
 
-    def create_agents(self) -> Tuple[Agent, Agent, Agent]:
+    def create_agents(self) -> Tuple[Agent, Agent]:
         main_agent = Agent(
             model=self.model,
             deps_type=Deps,
