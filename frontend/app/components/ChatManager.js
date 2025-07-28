@@ -290,8 +290,8 @@ const ChatManager = () => {
                 ...chat,
                 messages: [...chat.messages, ...newMessages],
                 lastUpdated: new Date().toISOString(),
-                title: updateTitle && !chat.title 
-                    ? newMessages.find(msg => msg.isUser)?.content.slice(0, 30) || chat.title
+                title: updateTitle && (!chat.title || chat.title === '' || chat.title === 'New chat')
+                    ? newMessages.find(msg => msg.isUser)?.content.slice(0, 30) || 'New chat'
                     : chat.title
             } : chat
         ));

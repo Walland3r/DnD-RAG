@@ -4,7 +4,6 @@ import React from 'react';
 import { useKeycloak } from './contexts/KeycloakContext';
 import ChatManager from './components/ChatManager';
 import LoginPage from './components/LoginPage';
-import UserProfile from './components/UserProfile';
 
 export default function Home() {
   const { authenticated, loading } = useKeycloak();
@@ -32,7 +31,6 @@ export default function Home() {
             <h1>D&D Agent</h1>
             <p>Ask a question about Dungeons & Dragons 5th Edition</p>
           </div>
-          <UserProfile />
         </div>
       </header>
       

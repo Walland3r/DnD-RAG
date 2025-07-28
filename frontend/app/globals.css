@@ -3,7 +3,8 @@
 }
 
 body {
-  background-color: rgb(20, 20, 20);
+  background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 25%, #2d2d2d 75%, #3a3a3a 100%);
+  background-attachment: fixed;
   color: whitesmoke;
   font-family: Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -38,7 +39,7 @@ header {
 }
 
 .header-title {
-  text-align: left;
+  text-align: center;
 }
 
 header h1 {
@@ -52,7 +53,6 @@ header p {
   color: #a0a0a0;
 }
 
-/* Authentication styles */
 .login-container {
   display: flex;
   justify-content: center;
@@ -104,35 +104,17 @@ header p {
   box-shadow: 0 4px 15px rgba(255, 204, 0, 0.3);
 }
 
-.user-profile {
+.user-profile, .header-bottom {
   display: flex;
+  justify-content: space-between;
   align-items: center;
+  flex-direction: row;
 }
 
 .user-info {
   display: flex;
   align-items: center;
   gap: 15px;
-}
-
-.user-name {
-  color: #ffcc00;
-  font-weight: bold;
-}
-
-.logout-button {
-  background-color: #ff4444;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  padding: 8px 16px;
-  cursor: pointer;
-  font-size: 12px;
-  transition: background-color 0.3s ease;
-}
-
-.logout-button:hover {
-  background-color: #ff6666;
 }
 
 .loading-container {
@@ -152,7 +134,7 @@ header p {
   color: #a0a0a0;
 }
 
-button {
+button{
   padding: 10px 20px;
   border: none;
   border-radius: 5px;
@@ -332,17 +314,22 @@ button:disabled {
   padding: 15px;
   border-bottom: 1px solid #3a3a3a;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap:10px
 }
 
-.sidebar-header h3 {
+.sidebar-header span {
   margin: 0;
   color: whitesmoke;
   font-size: 1.1em;
 }
 
-.new-chat-btn {
+.sidebar-header .user-name {
+  color: #ffcc00;
+  font-weight: bold;
+}
+
+.new-chat-btn, .logout-button {
   background-color: #4a4a4a;
   color: whitesmoke;
   border: none;
@@ -351,7 +338,17 @@ button:disabled {
   cursor: pointer;
   font-size: 12px;
   transition: background-color 0.3s ease;
+  width: 90px;
+  font-weight: bold;
 }
+
+.logout-button{
+  background-color: #ff2f2f;
+}
+.logout-button:hover{
+  background-color: #941818;
+}
+
 
 .new-chat-btn:hover {
   background-color: #5a5a5a;
@@ -441,10 +438,6 @@ button:disabled {
 
   .chat-sidebar {
     width: 250px;
-  }
-
-  .sidebar-header h3 {
-    font-size: 1em;
   }
 
   .new-chat-btn {
