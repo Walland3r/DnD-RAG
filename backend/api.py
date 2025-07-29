@@ -265,7 +265,18 @@ async def ask_question_stream(
 
 
 @app.post("/generate_database")
-async def generate_database() -> DatabaseGenerationResponse:
+async def generate_database(
+    user_context: UserContext = Depends(get_user_context)
+) -> DatabaseGenerationResponse:
+    """Generate the D&D knowledge database. Requires authentication and admin role."""
+    
+    # Check if user has admin role
+    if not user_context.has_role("admin"):
+        raise HTTPException(
+            status_code=403,
+            detail="Access denied. Admin role required to generate database."
+        )
+    
     try:
         doc_converter = DocumentConverter(allowed_formats=[InputFormat.PDF])
         db_client = QdrantClient(location=QDRANT_URL)
