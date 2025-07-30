@@ -2,11 +2,11 @@
 
 # Configuration - update these values according to your Keycloak setup
 KEYCLOAK_URL="http://localhost:8080"
-REALM="dnd-rag-test"
+REALM="dnd-rag"
 CLIENT_ID="dnd-rag-backend"
-CLIENT_SECRET="your-client-secret"
-USERNAME="admin"
-PASSWORD="admin"
+CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET}
+USERNAME="dnd_admin"
+PASSWORD="dnd_admin"
 
 # Get access token
 TOKEN_RESPONSE=$(curl -s -X POST \

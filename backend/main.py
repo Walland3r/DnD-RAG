@@ -17,6 +17,7 @@ from pydantic_ai.providers.openai import OpenAIProvider
 from qdrant_client import QdrantClient
 
 from web_search import WebSearchTool
+from web_search import SearchResult
 
 QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/v1")
@@ -25,10 +26,6 @@ EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM
 COLLECTION_NAME = os.getenv("COLLECTION_NAME", "handbook")
 SPARSE_MODEL = os.getenv("SPARSE_MODEL", "Qdrant/bm25")
 QUERY_LIMIT = int(os.getenv("QUERY_LIMIT", "10"))
-
-class WebSearchResult(BaseModel):
-    url: str
-    content: str
 
 @dataclass
 class Deps:
@@ -96,7 +93,7 @@ class DndKnowledgeBase:
             return "\n".join(results)
 
         @self.main_agent.tool
-        async def web_search(context: RunContext[Deps], search_query: str) -> WebSearchResult:
+        async def web_search(context: RunContext[Deps], search_query: str) -> SearchResult:
             """
             Tool: web_search
 
@@ -104,18 +101,17 @@ class DndKnowledgeBase:
             Performs a live Google search for the given query and scrapes the content 
             of the top result. Returns both the URL and the extracted page content.
             """
-            search_result = self.web_tool.web_search(query=search_query, max_results=1)
-            
-            # Check if any valid results were found
-            if not search_result.results:
-                return WebSearchResult(
-                    url="", 
-                    content=f"No valid search results found for query: {search_query}"
+            response = await self.web_tool.search_and_scrape(query=search_query)
+            if not response.results:
+                return SearchResult(
+                    url="",
+                    title="No result",
+                    snippet="",
+                    scraped_content=f"No valid search results found for query: {search_query}"
                 )
-            
-            url = search_result.results[0].url
-            content = self.web_tool.web_scrap(url)
-            return WebSearchResult(url=url, content=content)
+            print(response.results[0],flush=True)
+            return response.results[0]
+
 
     def get_main_agent(self) -> Agent:
         return self.main_agent

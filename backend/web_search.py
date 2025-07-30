@@ -1,119 +1,93 @@
 import os
+import asyncio
 from typing import List, Optional
 from pydantic import BaseModel, Field
-from googlesearch import search
-from httpx import Client
-from bs4 import BeautifulSoup
+from ddgs import DDGS
+from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, CacheMode
 from urllib.parse import urlparse
 
 
 class SearchResult(BaseModel):
     url: str = Field(..., description="URL of the search result")
+    title: Optional[str] = Field(None, description="Title of the search result")
+    snippet: Optional[str] = Field(None, description="Snippet of the search result")
+    scraped_content: Optional[str] = Field(
+        None, description="Scraped content in markdown"
+    )
+
 
 class SearchList(BaseModel):
-    results: List[SearchResult] = Field(..., description="Search results")
+    results: List[SearchResult] = Field(
+        ..., description="Search results with scraped content"
+    )
+
 
 class WebSearchTool:
-    def __init__(
-        self,
-        language: Optional[str] = None,
-        timeout: Optional[int] = None,
-        sleep_interval: Optional[int] = None,
-        http_timeout: Optional[int] = None,
-    ):
-        self.language = language or os.getenv("WEB_SEARCH_LANGUAGE", "en")
-        self.timeout = timeout or int(os.getenv("WEB_SEARCH_TIMEOUT", "1"))
-        self.sleep_interval = sleep_interval or int(os.getenv("WEB_SEARCH_SLEEP_INTERVAL", "1"))
-        self.http_timeout = http_timeout or int(os.getenv("WEB_SEARCH_HTTP_TIMEOUT", "10"))
-
-    def _validate_url(self, url: str) -> str:
-        """Validate and fix URL format"""
-        if not url:
-            return None
-            
-        # Parse the URL
+    def _validate_url(self, url: str) -> Optional[str]:
         parsed = urlparse(url)
-        
-        # If no scheme is provided, assume https
-        if not parsed.scheme:
-            url = f"https://{url}"
-            parsed = urlparse(url)
-        
-        # Check if it's a valid HTTP/HTTPS URL
-        if parsed.scheme not in ['http', 'https']:
+        if parsed.scheme not in ("http", "https"):
             return None
-            
-        # Check if domain exists
-        if not parsed.netloc:
-            return None
-            
         return url
 
-    def web_search(
-        self,
-        query: str,
-        max_results: int = 1,
-        unique: bool = False,
-    ) -> SearchList:
-        result_list = []
+    async def search_and_scrape(self, query: str, max_results: int = 1) -> SearchList:
+        ddgs = DDGS()
+        results = []
+
+        # Get search results
         try:
-            results = search(
-                term=query,
-                num_results=max_results,
-                lang=self.language,
-                start_num=0,
-                unique=unique,
-                sleep_interval=self.sleep_interval,
-            )
-            for _, result in enumerate(results):
-                validated_url = self._validate_url(result)
-                if validated_url:  # Only add valid URLs
-                    result_list.append(SearchResult(url=validated_url))
+            search_items = list(ddgs.text(query, max_results=max_results))
         except Exception as e:
-            # If search fails, return empty results
-            print(f"Search failed for query '{query}': {str(e)}")
+            print(f"Search failed: {e}")
+            return SearchList(results=[])
 
-        return SearchList(results=result_list)
+        # Setup crawler configs
+        browser_conf = BrowserConfig(headless=True)
+        run_conf = CrawlerRunConfig(cache_mode=CacheMode.BYPASS)
 
-    def web_scrap(self, url: str) -> str:
-        # Validate URL first
-        validated_url = self._validate_url(url)
-        if not validated_url:
-            return f'Invalid URL format: {url}'
-            
-        headers = {
-            "User-Agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/114.0.0.0 Safari/537.36"
-            ),
-            "Accept-Language": "en-US,en;q=0.9",
-         }
-        
-        try:
-            with Client(headers=headers) as client:
-                response = client.get(validated_url, timeout=self.http_timeout)
-                if response.status_code != 200:
-                    return f'Failed to fetch {validated_url}. Code: {response.status_code}'
+        async with AsyncWebCrawler(config=browser_conf) as crawler:
+            for item in search_items:
+                url = item.get("href")
+                title = item.get("title")
+                snippet = item.get("body")
 
-                soup = BeautifulSoup(response.text, 'html.parser')
-                return soup.get_text().replace('\n', '').replace('\r', '')
-        except Exception as e:
-            return f'Error scraping {validated_url}: {str(e)}'
+                validated_url = self._validate_url(url)
+                if not validated_url:
+                    results.append(
+                        SearchResult(
+                            url=url or "",
+                            title=title,
+                            snippet=snippet,
+                            scraped_content="Invalid URL",
+                        )
+                    )
+                    continue
 
-def test_web_search():
-    tool = WebSearchTool()
-    results = tool.web_search("wikipedia", max_results=1)
-    print(results.results[0].url)
-    assert isinstance(results, SearchList)
-    assert len(results.results) == 1
-    assert isinstance(results.results[0], SearchResult)
-    assert results.results[0].url.startswith("https://")
+                try:
+                    crawl_result = await crawler.arun(
+                        url=validated_url,
+                        config=run_conf,
+                        check_robots_txt=False,
+                        only_text=True,
+                        remove_forms=True,
+                        remove_overlay_elements=True,
+                        exclude_external_links=True,
+                        magic=True,
+                        simulate_user=True,
+                    )
+                    if crawl_result.success:
+                        scraped_md = crawl_result.markdown.fit_markdown
+                    else:
+                        scraped_md = f"Crawl failed: {crawl_result.error_message or 'unknown error'}"
+                except Exception as e:
+                    scraped_md = f"Crawl exception: {e}"
 
-def test_web_scrap():
-    tool = WebSearchTool()
-    url = "https://www.wikipedia.org/"
-    content = tool.web_scrap(url)
+                results.append(
+                    SearchResult(
+                        url=validated_url,
+                        title=title,
+                        snippet=snippet,
+                        scraped_content=scraped_md,
+                    )
+                )
 
-    assert isinstance(content, str)
-    assert "Wikipedia" in content 
+        return SearchList(results=results)
