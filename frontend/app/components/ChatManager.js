@@ -53,6 +53,7 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const API_ENDPOINTS = {
     CHAT_SESSIONS: `${BACKEND_URL}/chat/sessions`,
     ASK_STREAM: '/api/ask/stream',
+    SAVE_PARTIAL: `${BACKEND_URL}/chat/save_partial`,
 };
 
 const MESSAGES = {
@@ -217,6 +218,26 @@ const ChatManager = () => {
     }, [getToken, createAuthHeaders]);
 
 
+    // Update chat session title in backend
+    const updateChatSessionTitle = useCallback(async (chatId, title) => {
+        try {
+            const token = getToken();
+            if (!token) return false;
+
+            const response = await fetch(`${API_ENDPOINTS.CHAT_SESSIONS}/${chatId}`, {
+                method: 'PUT',
+                headers: createAuthHeaders(token),
+                body: JSON.stringify({ title }),
+            });
+
+            return response.ok;
+        } catch (error) {
+            console.error('Failed to update chat session title:', error);
+            return false;
+        }
+    }, [getToken, createAuthHeaders]);
+
+
     // Event handlers
     const handleNewChat = useCallback(async () => {
         const token = getToken();
@@ -271,6 +292,23 @@ const ChatManager = () => {
     }, [activeChat, setActiveChat, clearActiveChat, getToken, deleteChatSession]);
 
 
+    // Handle chat title editing
+    const handleEditTitle = useCallback(async (chatId, newTitle) => {
+        setChats(prev => prev.map(chat =>
+            chat.id === chatId ? { ...chat, title: newTitle } : chat
+        ));
+        
+        // Save to database
+        const token = getToken();
+        if (token) {
+            const success = await updateChatSessionTitle(chatId, newTitle);
+            if (!success) {
+                console.warn('Failed to update chat title in database');
+            }
+        }
+    }, [getToken, updateChatSessionTitle]);
+
+
     // Helper function to update chat messages
     const updateChatMessage = useCallback((chatId, messageId, newContent) => {
         setChats(prev => prev.map(chat =>
@@ -284,18 +322,30 @@ const ChatManager = () => {
         ));
     }, []);
 
-    const addMessagesToChat = useCallback((chatId, newMessages, updateTitle = false) => {
+    const addMessagesToChat = useCallback(async (chatId, newMessages, updateTitle = false) => {
+        let newTitleGenerated = null;
+        
         setChats(prev => prev.map(chat =>
             chat.id === chatId ? {
                 ...chat,
                 messages: [...chat.messages, ...newMessages],
                 lastUpdated: new Date().toISOString(),
-                title: updateTitle && (!chat.title || chat.title === '' || chat.title === 'New chat')
-                    ? newMessages.find(msg => msg.isUser)?.content.slice(0, 30) || 'New chat'
-                    : chat.title
+                title: (() => {
+                    if (updateTitle && (!chat.title || chat.title === '' || chat.title === 'New chat')) {
+                        const generatedTitle = newMessages.find(msg => msg.isUser)?.content.slice(0, 30) || 'New chat';
+                        newTitleGenerated = generatedTitle;
+                        return generatedTitle;
+                    }
+                    return chat.title;
+                })()
             } : chat
         ));
-    }, []);
+        
+        // Save the new title to the database if one was generated
+        if (newTitleGenerated && getToken()) {
+            await updateChatSessionTitle(chatId, newTitleGenerated);
+        }
+    }, [getToken, updateChatSessionTitle]);
 
     const fetchWithAuthRetry = useCallback(async (url, options) => {
         const token = getToken();
@@ -350,14 +400,38 @@ const ChatManager = () => {
     }, [setLoadingForChat]);
 
 
-    const handleAbortStream = useCallback((chatId) => {
+    const handleAbortStream = useCallback(async (chatId) => {
         const abortController = activeStreamsRef.current.get(chatId);
         if (abortController) {
+            // Find the current partial response before aborting
+            const chat = chats.find(c => c.id === chatId);
+            if (chat && chat.messages.length > 0) {
+                const lastMessage = chat.messages[chat.messages.length - 1];
+                // Only save if it's a non-user message and has content
+                if (!lastMessage.isUser && lastMessage.content && lastMessage.content !== MESSAGES.CHECKING) {
+                    try {
+                        const token = getToken();
+                        if (token) {
+                            await fetch(API_ENDPOINTS.SAVE_PARTIAL, {
+                                method: 'POST',
+                                headers: createAuthHeaders(token),
+                                body: JSON.stringify({
+                                    session_id: chatId,
+                                    partial_response: lastMessage.content
+                            }),
+                        });
+                        }
+                    } catch (error) {
+                        console.error('Failed to save partial response:', error);
+                    }
+                }
+            }
+            
             abortController.abort();
             activeStreamsRef.current.delete(chatId);
             setLoadingForChat(chatId, false);
         }
-    }, [setLoadingForChat]);
+    }, [chats, getToken, createAuthHeaders, setLoadingForChat]);
 
 
     const streamResponse = useCallback(async (chatId, question) => {
@@ -373,7 +447,7 @@ const ChatManager = () => {
             isUser: false 
         };
         
-        addMessagesToChat(chatId, [userMessage, placeholderMessage], true);
+        await addMessagesToChat(chatId, [userMessage, placeholderMessage], true);
         handleStreamStart(chatId, abortController);
 
         try {
@@ -425,6 +499,7 @@ const ChatManager = () => {
 
     const currentChat = chats.find(chat => chat.id === activeChat);
     const isCurrentChatLoading = loadingStates.get(activeChat) || false;
+    const isAnyStreamActive = loadingStates.size > 0;
 
     return (
         <div className="chat-manager">
@@ -445,6 +520,8 @@ const ChatManager = () => {
                         onChatSelect={handleChatSelect}
                         onNewChat={handleNewChat}
                         onDeleteChat={handleDeleteChat}
+                        onEditTitle={handleEditTitle}
+                        isStreamActive={isAnyStreamActive}
                     />
                 )}
 
@@ -464,7 +541,12 @@ const ChatManager = () => {
                     ) : (
                         <div className="no-chat-selected">
                             <p>{MESSAGES.NO_CHAT}</p>
-                            <button onClick={handleNewChat}>Start New Chat</button>
+                            <button 
+                                onClick={handleNewChat}
+                                disabled={isAnyStreamActive}
+                            >
+                                Start New Chat
+                            </button>
                         </div>
                     )}
                 </div>

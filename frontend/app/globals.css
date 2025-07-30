@@ -394,6 +394,23 @@ button:disabled {
   text-overflow: ellipsis;
 }
 
+.title-edit-input {
+  background: #444;
+  border: 1px solid #666;
+  color: whitesmoke;
+  font-size: 14px;
+  font-weight: bold;
+  padding: 2px 4px;
+  border-radius: 3px;
+  width: 100%;
+  outline: none;
+}
+
+.title-edit-input:focus {
+  border-color: #007acc;
+  background: #555;
+}
+
 .chat-preview {
   color: #a0a0a0;
   font-size: 12px;

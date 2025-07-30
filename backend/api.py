@@ -103,6 +103,11 @@ class UserProfileResponse(BaseModel):
     roles: list
 
 
+class SavePartialResponseRequest(BaseModel):
+    session_id: str
+    partial_response: str
+
+
 @app.get("/profile")
 async def get_user_profile(user_context: UserContext = Depends(get_user_context)) -> UserProfileResponse:
     """Get the current user's profile information."""
@@ -243,25 +248,61 @@ async def ask_question_stream(
 
     async def stream_response():
         response_content = ""
-        async with main_agent.iter(request.question, deps=deps, message_history=message_history) as run:
-            async for node in run:
-                if main_agent.is_model_request_node(node):
-                    async with node.stream(run.ctx) as request_stream:
-                        async for event in request_stream:
-                            if hasattr(event, "delta") and hasattr(event.delta, "content_delta"):
-                                content_delta = event.delta.content_delta
-                                response_content += content_delta
-                                yield content_delta
-        
-        if request.session_id and response_content:
-            await chat_history_manager.add_message_to_session(
-                request.session_id,
-                user_context.user_id,
-                response_content,
-                is_user=False
-            )
+        try:
+            async with main_agent.iter(request.question, deps=deps, message_history=message_history) as run:
+                async for node in run:
+                    if main_agent.is_model_request_node(node):
+                        async with node.stream(run.ctx) as request_stream:
+                            async for event in request_stream:
+                                if hasattr(event, "delta") and hasattr(event.delta, "content_delta"):
+                                    content_delta = event.delta.content_delta
+                                    response_content += content_delta
+                                    yield content_delta
+            
+            # Save complete response on successful completion
+            if request.session_id and response_content:
+                await chat_history_manager.add_message_to_session(
+                    request.session_id,
+                    user_context.user_id,
+                    response_content,
+                    is_user=False
+                )
+        except Exception as e:
+            # Save partial response with error indicator when an error occurs
+            if request.session_id and response_content:
+                error_message = f"\n\n❌ Error occurred during response generation: {str(e)}"
+                await chat_history_manager.add_message_to_session(
+                    request.session_id,
+                    user_context.user_id,
+                    response_content + error_message,
+                    is_user=False
+                )
+            # Yield the error message to the stream
+            yield f"\n\n❌ Error occurred: {str(e)}"
 
     return StreamingResponse(stream_response(), media_type="text/plain")
+
+
+@app.post("/chat/save_partial")
+async def save_partial_response(
+    request: SavePartialResponseRequest,
+    user_context: UserContext = Depends(get_user_context)
+) -> dict:
+    """Save a partial response when a stream is cancelled."""
+    if not request.session_id or not request.partial_response:
+        raise HTTPException(status_code=400, detail="Session ID and partial response are required")
+    
+    success = await chat_history_manager.add_message_to_session(
+        request.session_id,
+        user_context.user_id,
+        request.partial_response + "\n🛑 Response cancelled by user",
+        is_user=False
+    )
+    
+    if not success:
+        raise HTTPException(status_code=404, detail="Chat session not found")
+    
+    return {"message": "Partial response saved successfully"}
 
 
 @app.post("/generate_database")

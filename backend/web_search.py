@@ -1,5 +1,3 @@
-import os
-import asyncio
 from typing import List, Optional
 from pydantic import BaseModel, Field
 from ddgs import DDGS

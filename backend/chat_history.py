@@ -6,9 +6,8 @@ This module handles storing and retrieving user chat histories using MongoDB.
 
 import os
 from datetime import datetime, timezone
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from motor.motor_asyncio import AsyncIOMotorClient
-from pymongo.errors import DuplicateKeyError
 from pydantic import BaseModel, Field
 from bson import ObjectId
 

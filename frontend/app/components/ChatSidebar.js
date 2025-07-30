@@ -1,10 +1,38 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useKeycloak } from '../contexts/KeycloakContext';
 
-const ChatSidebar = ({ chats, activeChat, onChatSelect, onNewChat, onDeleteChat }) => {
+const ChatSidebar = ({ chats, activeChat, onChatSelect, onNewChat, onDeleteChat, onEditTitle, isStreamActive }) => {
   const { userInfo, logout } = useKeycloak();
+  const [editingChatId, setEditingChatId] = useState(null);
+  const [editingTitle, setEditingTitle] = useState('');
+
+  const handleTitleEdit = (chatId, currentTitle) => {
+    setEditingChatId(chatId);
+    setEditingTitle(currentTitle);
+  };
+
+  const handleTitleSave = async () => {
+    if (editingChatId && editingTitle.trim()) {
+      await onEditTitle(editingChatId, editingTitle.trim());
+    }
+    setEditingChatId(null);
+    setEditingTitle('');
+  };
+
+  const handleTitleCancel = () => {
+    setEditingChatId(null);
+    setEditingTitle('');
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleTitleSave();
+    } else if (e.key === 'Escape') {
+      handleTitleCancel();
+    }
+  };
   return (
     <div className="chat-sidebar">
       <div className="sidebar-header">
@@ -25,7 +53,8 @@ const ChatSidebar = ({ chats, activeChat, onChatSelect, onNewChat, onDeleteChat 
           <button 
             className="new-chat-btn"
             onClick={onNewChat}
-            title="Start New Chat"
+            disabled={isStreamActive}
+            title={isStreamActive ? "Cannot create new chat while streaming" : "Start New Chat"}
           >
             + New Chat
           </button>
@@ -36,12 +65,31 @@ const ChatSidebar = ({ chats, activeChat, onChatSelect, onNewChat, onDeleteChat 
         {chats.map((chat) => (
           <div 
             key={chat.id}
-            className={`chat-item ${activeChat === chat.id ? 'active' : ''}`}
-            onClick={() => onChatSelect(chat.id)}
+            className={`chat-item ${activeChat === chat.id ? 'active' : ''} ${isStreamActive ? 'disabled' : ''}`}
+            onClick={isStreamActive ? undefined : () => onChatSelect(chat.id)}
+            style={{ cursor: isStreamActive ? 'not-allowed' : 'pointer' }}
+            title={isStreamActive ? "Cannot switch chats while streaming" : ""}
           >
             <div className="chat-item-content">
               <div className="chat-title">
-                {chat.title || `New chat`}
+                {editingChatId === chat.id ? (
+                  <input
+                    type="text"
+                    value={editingTitle}
+                    onChange={(e) => setEditingTitle(e.target.value)}
+                    onBlur={handleTitleSave}
+                    onKeyDown={handleKeyPress}
+                    autoFocus
+                    className="title-edit-input"
+                  />
+                ) : (
+                  <span 
+                    onDoubleClick={() => !isStreamActive && handleTitleEdit(chat.id, chat.title || 'New chat')}
+                    title="Double-click to edit title"
+                  >
+                    {chat.title || `New chat`}
+                  </span>
+                )}
               </div>
               <div className="chat-preview">
                 {chat.messages.length > 0 
@@ -57,9 +105,12 @@ const ChatSidebar = ({ chats, activeChat, onChatSelect, onNewChat, onDeleteChat 
               className="delete-chat-btn"
               onClick={(e) => {
                 e.stopPropagation();
-                onDeleteChat(chat.id);
+                if (!isStreamActive) {
+                  onDeleteChat(chat.id);
+                }
               }}
-              title="Delete Chat"
+              disabled={isStreamActive}
+              title={isStreamActive ? "Cannot delete chat while streaming" : "Delete Chat"}
             >
               ×
             </button>
