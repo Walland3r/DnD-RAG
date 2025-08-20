@@ -26,9 +26,11 @@ COLLECTION_NAME = os.getenv("COLLECTION_NAME", "handbook")
 SPARSE_MODEL = os.getenv("SPARSE_MODEL", "Qdrant/bm25")
 QUERY_LIMIT = int(os.getenv("QUERY_LIMIT", "10"))
 
+
 @dataclass
 class Deps:
     client: QdrantClient
+
 
 class QdrantService:
     def __init__(self, url: str = QDRANT_URL, embedding_model: str = EMBEDDING_MODEL):
@@ -39,7 +41,9 @@ class QdrantService:
         except Exception as e:
             raise RuntimeError(f"Failed to initialize Qdrant client: {e}") from e
 
-    def query_documents(self, collection_name: str, query_text: str, limit: int = None) -> list[str]:
+    def query_documents(
+        self, collection_name: str, query_text: str, limit: int = None
+    ) -> list[str]:
         limit = limit or QUERY_LIMIT
         points = self.client.query(
             collection_name=collection_name,
@@ -48,11 +52,11 @@ class QdrantService:
         )
         return [f"\n{point.document}\n" for point in points]
 
+
 class AgentFactory:
     def __init__(self, model_name: str = MODEL_NAME, base_url: str = OLLAMA_URL):
         self.model = OpenAIModel(
-            model_name=model_name,
-            provider=OpenAIProvider(base_url=base_url)
+            model_name=model_name, provider=OpenAIProvider(base_url=base_url)
         )
 
     def create_agents(self) -> Tuple[Agent, Agent]:
@@ -71,6 +75,7 @@ class AgentFactory:
 
         return main_agent, intents_agent
 
+
 class DndKnowledgeBase:
     def __init__(self):
         self.qdrant_service = QdrantService()
@@ -85,19 +90,21 @@ class DndKnowledgeBase:
             """
             Tool: retrieve
 
-            Queries the local vector database (Qdrant) using the provided search query. 
+            Queries the local vector database (Qdrant) using the provided search query.
             Returns a concatenated string of relevant documents from the D&D 5e knowledge base.
             """
             results = self.qdrant_service.query_documents(COLLECTION_NAME, search_query)
             return "\n".join(results)
 
         @self.main_agent.tool
-        async def web_search(context: RunContext[Deps], search_query: str) -> SearchResult:
+        async def web_search(
+            context: RunContext[Deps], search_query: str
+        ) -> SearchResult:
             """
             Tool: web_search
 
             Description:
-            Performs a live Google search for the given query and scrapes the content 
+            Performs a live Google search for the given query and scrapes the content
             of the top result. Returns both the URL and the extracted page content.
             """
             response = await self.web_tool.search_and_scrape(query=search_query)
@@ -106,11 +113,10 @@ class DndKnowledgeBase:
                     url="",
                     title="No result",
                     snippet="",
-                    scraped_content=f"No valid search results found for query: {search_query}"
+                    scraped_content=f"No valid search results found for query: {search_query}",
                 )
-            print(response.results[0],flush=True)
+            print(response.results[0], flush=True)
             return response.results[0]
-
 
     def get_main_agent(self) -> Agent:
         return self.main_agent
@@ -120,4 +126,3 @@ class DndKnowledgeBase:
 
     def get_deps(self) -> Deps:
         return Deps(client=self.qdrant_service.client)
-
